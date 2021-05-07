@@ -378,6 +378,21 @@ be used when building and installing Sherpa.
 
    That is, the variable is set to a space, not the empty string.
 
+.. note::
+
+   Additionally, if you are building with Clang version 12, you will
+   encounter build issues in the region area related to an implicit
+   declaration. If so, pre-pending the following to your pip install
+   or python setup.py install line should resolve the build issues::
+
+     CFLAGS='-Wno-implicit-function-declaration'
+
+   (Note that on MacOS, "gcc" is usally just an alias to Clang. Unless
+   you specifically intall a gcc from a different source, you are
+   likely to run into this problem, even if you believe that your
+   compiler is invoced with `gcc`.)
+
+
 A standard installation
 ^^^^^^^^^^^^^^^^^^^^^^^
 
