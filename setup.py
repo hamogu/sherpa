@@ -125,7 +125,7 @@ meta = dict(name='sherpa',
                           'sherpa.astro.utils': ['tests/test_*.py'],
                           },
             data_files=[('sherpa',
-                         ['sherpa/sherpa.rc', 'sherpa/sherpa-standalone.rc']), ],
+                         ['sherpa/sherpa.rc']), ],
             ext_modules=static_ext_modules, cmdclass=versioneer.get_cmdclass(),
             entry_points={
                 'console_scripts': [

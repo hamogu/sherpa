@@ -734,7 +734,7 @@ def get_include():
 def get_config():
     "Get the path for the installed Sherpa configuration file"
 
-    filename = "sherpa-standalone.rc"
+    filename = "sherpa.rc"
 
     home_dir = None
     config = None

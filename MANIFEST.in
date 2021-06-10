@@ -36,7 +36,6 @@ include sherpa/optmethods/tests/tstopt.hh
 
 # Sherpa configuration files
 include sherpa/sherpa.rc
-include sherpa/sherpa-standalone.rc
 
 # HTML/notebook representation
 recursive-include sherpa/static *
