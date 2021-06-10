@@ -6,8 +6,17 @@ The sherpa.astro.io module
 
 .. automodule:: sherpa.astro.io
 
+   .. rubric:: Attributes
+
+   .. autosummary::
+      :toctree: api
+
+      backend
+      try_backends
+
+
    .. rubric:: Functions
-               
+
    .. autosummary::
       :toctree: api
 

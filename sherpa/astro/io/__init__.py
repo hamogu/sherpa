@@ -17,16 +17,34 @@
 #  with this program; if not, write to the Free Software Foundation, Inc.,
 #  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-"""
-Provide Astronomy-specific I/O routines for Sherpa.
+"""Provide Astronomy-specific I/O routines for Sherpa.
 
 This module contains read and write routines for handling FITS [1]_
 and ASCII format data. The actual support is provided by
 the selected I/O backend package (currently Crates, provided
 by CIAO, or the FITS support in the AstroPy package, if installed).
 
-This module should not be imported directly if there is no
-I/O backend available.
+Which backend is used?
+----------------------
+
+When this module is first imported, Sherpa tries to import the
+backends installed with Sherpa in the order listed in
+`sherpa.astro.io.try_backends`. The first module that imports
+successfully is set as the active backend. The following command prints the
+name and the location on disk of that module::
+
+   >>> import sherpa.astro import io
+   >>> print(io.backend)
+
+Change the backend
+------------------
+
+After the initial import, the backend can be changed by loading one of the
+I/O backends shipped with sherpa (or any other module that provides the same
+interface):
+
+  >>> import sherpa.astro.io.pyfits_backend
+  >>> io.backend = sherpa.astro.io.pyfits_backend
 
 References
 ----------
@@ -55,10 +73,6 @@ from sherpa import get_config
 config = ConfigParser()
 config.read(get_config())
 
-# What should we use for the default package?
-io_opt = config.get('options', 'io_pkg', fallback='pyfits')
-io_opt = str(io_opt).strip().lower()
-
 ogip_emin = config.get('ogip', 'minimum_energy', fallback='1.0e-10')
 
 if ogip_emin.upper() == 'NONE':
@@ -74,26 +88,29 @@ else:
     if ogip_emin <= 0.0:
         raise ValueError(emsg)
 
-if io_opt.startswith('pycrates') or io_opt.startswith('crates'):
-    io_opt = 'crates_backend'
+try_backends = ['crates_backend', 'pyfits_backend', 'dummy_backend']
+'''List of I/O backends installed with Sherpa.
 
-elif io_opt.startswith('pyfits'):
-    io_opt = 'pyfits_backend'
+Modules will be imported in order until one imports successfully.'''
 
-try:
-    importlib.import_module('.' + io_opt, package='sherpa.astro.io')
-    backend = sys.modules['sherpa.astro.io.' + io_opt]
-except ImportError:
-    raise ImportError("""Cannot import selected FITS I/O backend {}.
-    If you are using CIAO, this is most likely an error and you should contact the CIAO helpdesk.
-    If you are using Standalone Sherpa, please install astropy."""
-                      .format(io_opt))
+backend = None
+'''Currently active backend module for astronomy specific I/O.'''
+
+if backend is None:
+    for io_opt in try_backends:
+        try:
+            backend = importlib.import_module('.' + io_opt,
+                                              package='sherpa.astro.io')
+            break
+        except ImportError:
+            pass
 
 warning = logging.getLogger(__name__).warning
 info = logging.getLogger(__name__).info
 
 
-__all__ = ('read_table', 'read_image', 'read_arf', 'read_rmf', 'read_arrays',
+__all__ = ('try_backends', 'backend',
+           'read_table', 'read_image', 'read_arf', 'read_rmf', 'read_arrays',
            'read_pha', 'write_image', 'write_pha', 'write_table',
            'pack_table', 'pack_image', 'pack_pha', 'read_table_blocks')
 
