@@ -1135,3 +1135,5 @@ def test_data_model_plot_with_backend(all_plot_backends):
 
     with splot.backend:
         fplot.plot()
+        import time
+        time.sleep(1)  # wait for the plot to be drawn
