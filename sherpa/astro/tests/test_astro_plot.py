@@ -177,6 +177,40 @@ def make_basic_datapha():
     return d
 
 
+def test_data_model_plot_with_backend(all_plot_backends):
+    """Check an actual plot of a histogram.
+
+    The idea is to check we can handle the different backends with a
+    "fit" plot - that is sherpa.astro.ui.plot_fit.
+
+    This was written as the
+    sherpa/astro/ui/tests/test_plot_model_all_backends test failed
+    during the rework-the-plotting-backend work, and this was added to
+    check where the issue happened.
+
+    All we care about is if the plot works and doesn't cause any error
+    (e.g. because of unsupported options with a particular backend).
+
+    """
+
+    pha = example_pha_data()
+    model = PowLaw1D('example-pl')
+    resp = pha.get_full_response()
+    full_model = resp(model)
+
+    dplot = aplot.DataPHAPlot()
+    dplot.prepare(pha)
+
+    mplot = aplot.ModelPHAHistogram()
+    mplot.prepare(pha, full_model)
+
+    fplot = splot.FitPlot()
+    fplot.prepare(dplot, mplot)
+
+    with splot.backend:
+        fplot.plot()
+
+
 def test_sourceplot(caplog, make_basic_datapha):
 
     data = make_basic_datapha
@@ -1103,35 +1137,3 @@ def test_1779_grouped_fit(subset, factor):
     validate_1779_grouped(pha, mplot, subset, factor)
 
 
-def test_data_model_plot_with_backend(all_plot_backends):
-    """Check an actual plot of a histogram.
-
-    The idea is to check we can handle the different backends with a
-    "fit" plot - that is sherpa.astro.ui.plot_fit.
-
-    This was written as the
-    sherpa/astro/ui/tests/test_plot_model_all_backends test failed
-    during the rework-the-plotting-backend work, and this was added to
-    check where the issue happened.
-
-    All we care about is if the plot works and doesn't cause any error
-    (e.g. because of unsupported options with a particular backend).
-
-    """
-
-    pha = example_pha_data()
-    model = PowLaw1D('example-pl')
-    resp = pha.get_full_response()
-    full_model = resp(model)
-
-    dplot = aplot.DataPHAPlot()
-    dplot.prepare(pha)
-
-    mplot = aplot.ModelPHAHistogram()
-    mplot.prepare(pha, full_model)
-
-    fplot = splot.FitPlot()
-    fplot.prepare(dplot, mplot)
-
-    with splot.backend:
-        fplot.plot()
