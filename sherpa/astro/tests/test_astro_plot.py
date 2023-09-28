@@ -1102,7 +1102,16 @@ def test_1779_grouped_fit(subset, factor):
     mplot = ModelPHAHistogram()
     validate_1779_grouped(pha, mplot, subset, factor)
 
-
+# On CI, but not locally, this test fails.
+# HMG does not understand exactly why, but it's probably related to
+# the fact the CI runs with a virtual display and bokeh starts some
+# browser process to display this plot.
+#  --------------------------- Captured stdout teardown ---------------------------
+# *** Warnings created: 1
+# 1/1 {message : ResourceWarning('subprocess 50207 is still running'), category : 'ResourceWarning', filename : '/opt/hostedtoolcache/Python/3.9.18/x64/lib/python3.9/subprocess.py', lineno : 1052, line : None}
+@pytest.mark.xfail(splot.backend.name == 'BokehBackend',
+                   reason="subprocess started by bokeh does not terminate before end of test",
+                   raises=AssertionError)
 def test_data_model_plot_with_backend(all_plot_backends):
     """Check an actual plot of a histogram.
 
