@@ -238,6 +238,19 @@ if have_astropy:
     }
     known_warnings.update(astropy_warnings)
 
+try:
+    import bokeh
+
+    bokeh_warnings = {
+        ResourceWarning:
+            [
+               r"subprocess [0-9]+ is still running",
+               r"unclosed file <_io.BufferedReader name=',
+            ]
+    }
+    known_warnings.update(bokeh_warnings)
+except ImportError:
+    pass
 
 """
 # Currently no matplotlib warnings to ignore, but leave code so it is
