@@ -203,7 +203,7 @@ class TemporaryPlottingBackend(contextlib.AbstractContextManager):
 
     >>> from sherpa.plot import TemporaryPlottingBackend, DataPlot
     >>> from sherpa.data import Data1D
-    >>> with TemporaryPlottingBackend('pylab'):
+    >>> with TemporaryPlottingBackend('pylab') as plotbackend:
     ...     x1 = [100, 200, 600, 1200]
     ...     y1 = [2000, 2100, 1400, 3050]
     ...     d1 = Data1D('oned', x1, y1)
@@ -220,6 +220,7 @@ class TemporaryPlottingBackend(contextlib.AbstractContextManager):
         global backend
         self.old = backend
         set_backend(self.backend)
+        return self.backend
 
     def __exit__(self, *args):
         global backend
