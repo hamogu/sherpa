@@ -264,3 +264,4 @@ Reference/API
 
    optmethods
    optfcts
+   optscipy
