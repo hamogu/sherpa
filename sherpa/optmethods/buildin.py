@@ -44,10 +44,15 @@ __all__ = ['GridSearch', 'OptMethod', 'LevMar', 'MonCar', 'NelderMead']
 class OptMethod(NoNewAttributesAfterInit):
     """Base class for the optimisers.
 
+    A new optimizer can be created by directly instantiating this
+    class or by subclassing it which provides the opportunity to
+    set default values for name and optimization function.
+
     Parameters
     ----------
     name : str
-       The name of the optimiser.
+       The name of the optimiser; this is just a string used to identify
+       the optimiser in output messages.
     optfunc : function
        The function which optimises the model: its arguments are
        a function which evaluates the statistic given a list of parameter
@@ -57,28 +62,119 @@ class OptMethod(NoNewAttributesAfterInit):
     Notes
     -----
 
-    The optfunc argument is used to define the configuration
-    options: they are taken from the keyword arguments and used
-    to create the `default_config` dictionary which is then
-    used to create the user-editable `config` field.
+    The `optfunc` is the main input to the optimizer. It must be a
+    callable with the following signature::
 
-    The optfunc function must accept the positional arguments::
+      def optfunc(fcn: StatFunc,
+         x0: np.ndarray,
+         xmin: np.ndarray,
+         xmax: np.ndarray,
+         **kwargs) -> OptReturn
 
-        fcn:  OptFunc
-        x0:   ArrayType
-        xmin: ArrayType
-        xmax: ArrayType
+    ``fcn`` is a callable that has only a single argument (a sequence of
+    parameter values) and returns a tuple of the statistic value and per-bin
+    statistic values for the given values. (Most optimizers will use the
+    total value of the statistics, but some my profit from the per-bin
+    information.) ``fcn`` is prepared by Sherpa and does not need any
+    additional information from the optimizer, in particular it internally
+    already knows about that data and model to be used.
 
-    and the remaining arguments are sent in as keyword arguments, and
-    so can be specific to the optimization function. The x0, xmin, and
-    xmax values specify the starting values and their minimum and
-    maximum limits; they are intended to be sent in as 1D numeric
-    arrays.
+    `x0` is a sequence of starting values for the parameters. It only
+    contains the free parameters that the optimizer will vary.
+    `xmin` and `xmax` are the minimum and maximum values for the
+    parameters. In sherpa, all parameters are bounded in some way either
+    because there is a physical limit (e.g. some X-ray models are only
+    available for a certain range of plasma temperatures) or because
+    there is a mathematical limit (e.g. the width of a Gaussian cannot be
+    negative). For numerical reasons, Sherpa does not allow limits of 0 or inf,
+    but uses `sherpa.models.parameter.tinyval` and
+    `sherpa.models.parameter.hugeval` in its build-in models.
+    For example, the width of a Gaussian is bounded ``+tinyval`` to ``+hugeval``.
 
-    The function returns the statistic value and per-bin statistic
-    values for the given values - which are the first argument it is
-    sent, and then it can take other arguments which are set by the
-    statargs and statkwargs arguments sent to the `fit` call.
+    The `x0`, `xmin`, and `xmax` sequences will always have the same
+    length and they are typically of type `np.array`, but lists or tuples
+    may also appear depending on how exactly the optimizer is called;
+    the optimizing function shall accept any of these types.
+
+    Usually, an ``optfunc`` will call the function ``fcn`` multiple times
+    with different values of the parameters until it find a minimum.
+    It must then return a tuple of the following form::
+
+        OptReturn = tuple[bool,        # did the optimiser succeed
+                      np.ndarray,      # final parameter values
+                      float,           # final statistic value
+                      str,             # message
+                      dict[str, Any]]  # information to pass back
+
+    Example
+    -------
+    For this example, we first define an optimizer function. To demonstrate
+    the interface, we use a function that is stupidly simple and should
+    **not** be used for any real fitting problem: We will simply draw random
+    numbers for the parameters a few times and return the set of parameters
+    that gives the lowest value of the statistic.
+
+      >>> import numpy as np
+      >>> from sherpa.utils.types import StatFunc, OptReturn
+      >>> rng = np.random.default_rng(42)  # fixed seed for reproducibility
+      >>> def stupid_optfunc(fcn: StatFunc,
+      ...                    x0: np.ndarray,
+      ...                    xmin: np.ndarray,
+      ...                    xmax: np.ndarray,
+      ...                    n_iter: int = 20) -> OptReturn:
+      ...     '''Do NOT use this in real life!'''
+      ...     best_pars = x0
+      ...     best_stat = fcn(x0)[0]
+      ...     for i in range(n_iter):
+      ...         try_x = rng.uniform(xmin, xmax)
+      ...         try_stat = fcn(try_x)[0]
+      ...         if try_stat < best_stat:
+      ...             best_stat = try_stat
+      ...             best_pars = try_x
+      ...     return (True, best_pars, best_stat,
+      ...             'Is this really a success?',
+      ...             {'additional info': 'not really'})
+
+    Now, we can create an instance of the `OptMethod` class::
+
+      >>> from sherpa.optmethods import OptMethod
+      >>> opt = OptMethod(name='myopt', optfunc=stupid_optfunc)
+
+    We can change the default of the parameters on the instance::
+
+      >>> opt.n_iter = 15
+
+    And finally let's some make some very simply data and try to fit it::
+
+      >>> from sherpa.data import Data1D
+      >>> from sherpa.models import Const1D
+      >>> from sherpa.stats import Chi2
+      >>> from sherpa.fit import Fit
+      >>> data = Data1D('data1', x=np.arange(5),
+      ...               y=[3.4, 3.6, 3.3, 3.5, 3.4],
+      ...               staterror=[0.1, 0.2, 0.14, 0.09, 0.1])
+      >>> model = Const1D('model')
+      >>> model.c0.min = 0
+      >>> model.c0.max = 10
+      >>> fitter = Fit(data, model, stat=Chi2(), method=opt)
+      >>> result = fitter.fit()
+      >>> print(result)
+      datasets       = None
+      itermethodname = none
+      methodname     = optmethod
+      statname       = chi2
+      succeeded      = True
+      parnames       = ('model.c0',)
+      parvals        = (3.7079802423258124,)
+      statval        = 33.094317831919184
+      istatval       = 2362.5028974552783
+      dstatval       = 2329.408579623359
+      numpoints      = 5
+      dof            = 4
+      qval           = 1.142528391357815e-06
+      rstat          = 8.273579457979796
+      message        = Is this really a success?
+      nfev           = None
 
     """
 
