@@ -203,25 +203,6 @@ class OptMethod(NoNewAttributesAfterInit):
     def __repr__(self) -> str:
         return f"<{type(self).__name__} optimization method instance '{self.name}'>"
 
-    # Need to support users who have pickled sessions < CIAO 4.2
-    # TODO: can this be removed as CIAO 4.2 was a long time ago?
-    #
-    def __setstate__(self, state):
-        new_config = get_keyword_defaults(state.get('_optfunc'))
-        old_config = state.get('config', {})
-
-        # remove old kw args from opt method dict
-        for key in old_config.keys():
-            if key not in new_config:
-                old_config.pop(key)
-
-        # add new kw args with defaults
-        for key, val in new_config.items():
-            if key not in old_config:
-                old_config[key] = val
-
-        self.__dict__.update(state)
-
     def __str__(self) -> str:
         names = ['name']
         names.extend(get_keyword_names(self._optfunc))
