@@ -180,12 +180,15 @@ class OptMethod(NoNewAttributesAfterInit):
 
     def __init__(self,
                  name: str,
-                 optfunc: OptFunc
+                 optfunc: OptFunc,
+                 **kwargs: Any,
                  ) -> None:
         self.name = name
         self._optfunc = optfunc
         self.config: dict[str, Any] = self._get_default_config()
         super().__init__()
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     # Allow direct access to the configuration options.
     #
@@ -326,8 +329,8 @@ class GridSearch(OptMethod):
 
     """
 
-    def __init__(self, name: str = 'gridsearch') -> None:
-        super().__init__(name=name, optfunc=grid_search)
+    def __init__(self, name: str = 'gridsearch', **kwargs) -> None:
+        super().__init__(name=name, optfunc=grid_search, **kwargs)
 
 
 """
@@ -580,8 +583,8 @@ class LevMar(OptMethod):
            Springer-Verlag: Berlin, 1978, pp.105-116.
 
         """
-    def __init__(self, name: str = 'levmar') -> None:
-        super().__init__(name=name, optfunc=lmdif)
+    def __init__(self, name: str = 'levmar', **kwargs) -> None:
+        super().__init__(name=name, optfunc=lmdif, **kwargs)
 
 
 class MonCar(OptMethod):
@@ -645,8 +648,8 @@ class MonCar(OptMethod):
 
     """
 
-    def __init__(self, name: str = 'moncar') -> None:
-        super().__init__(name=name, optfunc=montecarlo)
+    def __init__(self, name: str = 'moncar', **kwargs) -> None:
+        super().__init__(name=name, optfunc=montecarlo, **kwargs)
 
 
 # ## DOC-TODO: finalximplex=4 and 5 list the same conditions, it is likely
@@ -849,5 +852,5 @@ class NelderMead(OptMethod):
            https://bemlar.ism.ac.jp/zhuang/Refs/Refs/wright1995numana.pdf
 
     """
-    def __init__(self, name: str = 'simplex') -> None:
-        super().__init__(name=name, optfunc=neldermead)
+    def __init__(self, name: str = 'simplex', **kwargs) -> None:
+        super().__init__(name=name, optfunc=neldermead, **kwargs)
