@@ -96,6 +96,7 @@ Some points to take away from the discussions in the rest of this document.
   4. Always check that the minimum "looks right" by visualizing the
      model and the data.
 
+.. _optimizers-localglobal:
 
 Background information on different types of optimisers
 =======================================================
@@ -263,4 +264,5 @@ Reference/API
 
    optmethods
    optscipy
+   optoptimagic
    optfcts

@@ -57,6 +57,7 @@ doc = [
   "bokeh",
   "scipy",
   "arviz",
+  "optimagic",
 ]
 
 [project.urls]
