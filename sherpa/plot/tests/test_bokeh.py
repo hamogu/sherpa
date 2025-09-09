@@ -1,5 +1,5 @@
 #
-#  Copyright (C) 2024
+#  Copyright (C) 2024-2025
 #  MIT
 #
 #
@@ -21,9 +21,14 @@
 
 import os
 import pytest
+
+import numpy as np
+
 from sherpa import plot
 from sherpa.astro import ui
 from sherpa.utils.testing import requires_data, requires_fits
+from sherpa.plot import DataPlot
+from sherpa.data import Data1D, Data1DInt
 
 
 @requires_fits
@@ -53,3 +58,59 @@ def test_bokeh_delchi(caplog, clean_ui):
     newback = bokehbackend.BokehBackend()
     with plot.TemporaryPlottingBackend(newback):
         ui.plot_fit_delchi()
+
+
+def test_bokeh_specific_option_does_not_error():
+    """Test that a bokeh-specific option does not error out.
+
+    """
+    bokehbackend = pytest.importorskip("sherpa.plot.bokeh_backend")
+    # previous line guarantees that bokeh is installed
+    from bokeh.embed import file_html
+    from bokeh.resources import CDN
+
+    data = Data1DInt('tst', np.asarray([1, 2, 3]), np.asarray([1, 2, 3]) + 1,
+                      np.asarray([10, 12, 10.5]))
+    pl = DataPlot()
+    pl.prepare(data, stat=None)
+    newback = bokehbackend.BokehBackend()
+    with plot.TemporaryPlottingBackend(newback):
+        pl.plot(marker='o',tags=['foo', 10], line_dash_offset=3, linestyle="dashed")
+        html = file_html(plot.backend.current_fig, CDN, "my plot")
+
+    assert '"tags":["foo",10]' in html
+    assert '"line_dash_offset":3' in html
+
+
+def test_bokeh_specific_option_scatter():
+    bokehbackend = pytest.importorskip("sherpa.plot.bokeh_backend")
+    # previous line guarantees that bokeh is installed
+    from bokeh.embed import file_html
+    from bokeh.resources import CDN
+
+    rng = np.random.default_rng(1273)
+    z1 = rng.wald(100, 20, size=1000)
+    z2 = rng.wald(100, 2000, size=1000)
+
+    splot = plot.ScatterPlot()
+    splot.prepare(z1, z2, xlabel='$$z_1$$', ylabel='$$z_2$$')
+    newback = bokehbackend.BokehBackend()
+    with plot.TemporaryPlottingBackend(newback):
+        splot.plot(xlog=True, hatch_pattern='/', markersize=20, alpha=0.5)
+        html = file_html(plot.backend.current_fig, CDN, "my plot")
+
+    assert '"hatch_pattern":{"type":"value","value":"/"}' in html
+
+
+def test_warning_plot_linecolor():
+    """We get a warning when using linecolor: DataPlot"""
+    bokehbackend = pytest.importorskip("sherpa.plot.bokeh_backend")
+
+    data = Data1D('tst', np.asarray([1, 2, 3]), np.asarray([10, 12, 10.5]))
+    pl = DataPlot()
+    pl.prepare(data, stat=None)
+    newback = bokehbackend.BokehBackend()
+    with plot.TemporaryPlottingBackend(newback):
+        with pytest.raises(AttributeError,
+                           match="unexpected attribute 'keyword_make_no_sense' to Scatter"):
+            pl.plot(keyword_make_no_sense='mousey')

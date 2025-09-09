@@ -1,5 +1,5 @@
 #
-#  Copyright (C) 2023, 2024
+#  Copyright (C) 2023-2025
 #  MIT
 #
 #
@@ -286,6 +286,7 @@ class BokehBackend(BasicBackend):
               label=None,
               linewidth=None,
               linecolor=None,
+              **kwargs
               ):
         """Draw histogram data.
 
@@ -326,7 +327,8 @@ class BokehBackend(BasicBackend):
                 linewidth=linewidth,
                 drawstyle=drawstyle,
                 color=color, marker=None, alpha=alpha,
-                xaxis=False, ratioline=False)
+                xaxis=False, ratioline=False,
+                **kwargs)
 
         # Draw points and error bars at the mid-point of the bins.
         # Use the color used for the data plot: should it
@@ -392,7 +394,9 @@ class BokehBackend(BasicBackend):
               linecolor=None,
               linestyle=None,
               linewidth=None,
-              overplot=False, clearwindow=True):
+              overplot=False, clearwindow=True,
+              **kwargs
+              ):
         """Draw a vertical line
 
         Parameters
@@ -406,7 +410,9 @@ class BokehBackend(BasicBackend):
         line = Span(location=x, dimension='height',
                     line_width=linewidth,
                     line_color=linecolor,
-                    line_dash=linestyle)
+                    line_dash=linestyle,
+                    **kwargs
+                    )
         axes.add_layout(line)
 
     # There is no support for alpha in the Plot.hline class
@@ -418,7 +424,9 @@ class BokehBackend(BasicBackend):
               linecolor=None,
               linestyle=None,
               linewidth=None,
-              overplot=False, clearwindow=True):
+              overplot=False, clearwindow=True,
+              **kwargs
+              ):
         """Draw a horizontal line
 
         Parameters
@@ -432,7 +440,9 @@ class BokehBackend(BasicBackend):
         line = Span(location=y, dimension='width',
                     line_width=linewidth,
                     line_color=linecolor,
-                    line_dash=linestyle)
+                    line_dash=linestyle,
+                    **kwargs
+                    )
         axes.add_layout(line)
 
     @add_kwargs_to_doc(kwargs_doc)
@@ -458,6 +468,7 @@ class BokehBackend(BasicBackend):
              linewidth=1,
              linecolor=None,
              xaxis=None, ratioline=None,
+             **kwargs
              ):
         """Draw x, y data.
 
@@ -503,7 +514,6 @@ class BokehBackend(BasicBackend):
 
         objs = []
 
-        kwargs = {}
         if label is not None:
             kwargs['legend_label'] = label
         if linestyle != 'noline':
@@ -529,12 +539,10 @@ class BokehBackend(BasicBackend):
             glyph = Scatter(marker=marker,
                             line_alpha=alpha,
                             fill_alpha=alpha,
-                            hatch_alpha=alpha,
                             line_color=markerfacecolor,
                             fill_color=markerfacecolor,
-                            hatch_color=markerfacecolor,
                             size=markersize,
-                            *kwargs
+                            **kwargs
                             )
             axes.add_glyph(source, glyph)
             objs.append(glyph)
@@ -607,6 +615,7 @@ class BokehBackend(BasicBackend):
                 linestyles='solid',
                 colors=None,
                 label=None,
+                **kwargs
                 ):
         """Draw 2D contour data.
 
@@ -646,7 +655,8 @@ class BokehBackend(BasicBackend):
 
 
         axes.contour(x0, x1, y, levels, line_alpha=alpha,
-                     line_color=colors, line_width=linewidths)
+                     line_color=colors, line_width=linewidths,
+                     **kwargs)
 
     @add_kwargs_to_doc(kwargs_doc)
     @translate_args
@@ -673,7 +683,6 @@ class BokehBackend(BasicBackend):
             with shape (len(x0), len(x1))
         {kwargs}
         """
-        print(x0, x1, y, aspect, kwargs)
         axes = self.setup_axes(overplot, clearwindow)
 
         # Set up the axes
@@ -681,7 +690,7 @@ class BokehBackend(BasicBackend):
             self.setup_plot(axes, title, xlabel, ylabel)
 
         axes.image(image=[y], x=x0[0], y=x1[0], dw=x0[-1] - x0[0], dh=x1[-1] - x1[0],
-                   level='image', palette="Sunset11")
+                   level='image', palette="Sunset11", **kwargs)
         axes.aspect_ratio = aspect
 
 
