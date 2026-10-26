@@ -32,7 +32,7 @@ import bokeh
 from bokeh.plotting import figure, show
 from bokeh.models.scales import LinearScale, LogScale
 from bokeh.models.annotations import Span
-from bokeh.models import Whisker, Scatter
+from bokeh.models import Whisker, Scatter, Line, Legend
 from bokeh.models import ColumnDataSource
 from bokeh import embed
 from bokeh.layouts import gridplot
@@ -215,6 +215,16 @@ class BokehBackend(BasicBackend):
         """
         return f"$${txt}$$"
 
+    @staticmethod
+    def _filter_kwargs_for_model(model, kwargs):
+        """Return keyword arguments supported by the given Bokeh model.
+
+        This avoids a hand-curated list of accepted glyph attributes and works
+        with the actual property set of the Bokeh model class.
+        """
+        valid = set(model.properties())
+        return {k: v for k, v in kwargs.items() if k in valid}
+
     def _figure(self):
         fig = figure()
         fig._color_cycle = cycle(self.palette)
@@ -328,6 +338,7 @@ class BokehBackend(BasicBackend):
                 drawstyle=drawstyle,
                 color=color, marker=None, alpha=alpha,
                 xaxis=False, ratioline=False,
+                label=label,
                 **kwargs)
 
         # Draw points and error bars at the mid-point of the bins.
@@ -355,6 +366,7 @@ class BokehBackend(BasicBackend):
                           color=color,
                           alpha=alpha,
                           linestyle='noline',
+                          label=label,
                           marker=marker,
                           markersize=markersize,
                           markerfacecolor=markerfacecolor,
@@ -492,16 +504,29 @@ class BokehBackend(BasicBackend):
 
         objs = []
 
+        # The generic "label" overrides the bokeh-specific "legend_label" parameter.
+        legend_label = kwargs.pop('legend_label', None)
         if label is not None:
-            kwargs['legend_label'] = label
-        if linestyle != 'noline':
+            legend_label = label
+
+        # Bokeh line, marker and whisker models accept different keyword sets.
+        # Filter each target by the actual property names supported by that model.
+        line_kwargs = self._filter_kwargs_for_model(Line, kwargs)
+        if legend_label is not None:
+            line_kwargs['legend_label'] = legend_label
+
+        # For lines, bokeh can add the legend to the line, but for markers,
+        # it needs to be added separately.
+        # `has_line` tracks if we have a line that the legend can be added to.
+        has_line = linestyle != 'noline'
+        if has_line:
             if drawstyle == 'default':
                 objs.append(axes.line(x, y,
                                       line_dash=linestyle,
                                       line_color=color,
                                       line_width=linewidth,
                                       alpha=alpha,
-                                      **kwargs
+                                      **line_kwargs
                                       ))
             else:
                 objs.append(axes.steps(x, y,
@@ -509,20 +534,23 @@ class BokehBackend(BasicBackend):
                                 line_dash=linestyle,
                                 line_color=color,
                                 alpha=alpha,
-                                **kwargs
+                                **line_kwargs
                                 ))
         if marker not in ('None', ''):
             source = ColumnDataSource({'x': np.atleast_1d(x),
                                        'y': np.atleast_1d(y)})
+            scatter_kwargs = self._filter_kwargs_for_model(Scatter, kwargs)
             glyph = Scatter(marker=marker,
                             line_alpha=alpha,
                             fill_alpha=alpha,
                             line_color=markerfacecolor,
                             fill_color=markerfacecolor,
                             size=markersize,
-                            **kwargs
+                            **scatter_kwargs
                             )
-            axes.add_glyph(source, glyph)
+            renderer = axes.add_glyph(source, glyph)
+            if legend_label is not None and not has_line:
+                axes.add_layout(Legend(items=[(legend_label, [renderer])]))
             objs.append(glyph)
 
         if xerrorbars and xerr is not None:
@@ -531,14 +559,15 @@ class BokehBackend(BasicBackend):
                                        'lower': np.atleast_1d(x - xerr),
                                        'upper': np.atleast_1d(x + xerr),
                                        })
+            whisker_kwargs = self._filter_kwargs_for_model(Whisker, kwargs)
             xwhisker = Whisker(
                 source=source,
                 base='y', lower='lower', upper='upper',
-                               dimension='width',
-                               line_alpha=alpha,
-                               line_color=ecolor,
-                               *kwargs
-                               )
+                dimension='width',
+                line_alpha=alpha,
+                line_color=ecolor,
+                **whisker_kwargs
+            )
             xwhisker.upper_head.size=capsize
             xwhisker.lower_head.size=capsize
             axes.add_layout(xwhisker)
@@ -560,13 +589,14 @@ class BokehBackend(BasicBackend):
                                        'lower': ylo,
                                        'upper': yhi,
                                        })
+            whisker_kwargs = self._filter_kwargs_for_model(Whisker, kwargs)
             ywhisker = Whisker(
                 source=source,
                 base='x', lower='lower', upper='upper',
-                               dimension='height',
-                               line_alpha=alpha, line_color=ecolor,
-                               **kwargs
-                               )
+                dimension='height',
+                line_alpha=alpha, line_color=ecolor,
+                **whisker_kwargs
+            )
             ywhisker.upper_head.size=capsize
             ywhisker.lower_head.size=capsize
             axes.add_layout(ywhisker)
@@ -631,9 +661,12 @@ class BokehBackend(BasicBackend):
             # We try to pick something sensible, but not too complicated.
             levels = np.linspace(np.min(y), np.max(y), levels)[1: -1]
 
+        # As of 2026, bokeh does not support legends for contour plots, so we ignore any label
+        kwargs.pop('legend_label', None)
 
         axes.contour(x0, x1, y, levels, line_alpha=alpha,
                      line_color=colors, line_width=linewidths,
+                     line_dash=linestyles,
                      **kwargs)
 
     @add_kwargs_to_doc(kwargs_doc)

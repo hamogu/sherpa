@@ -107,10 +107,10 @@ def test_bokeh_specific_option_scatter():
 
 @pytest.mark.parametrize("plotclass", [DataPlot, DataHistogramPlot])
 def test_warning_plot_unknown_keyword(plotclass):
-    """We get an error when we attempt to set a plotting parameter
-    that neither Sherpa nor the underlying plotting library understand.
-    """
+    """Unsupported kwargs are ignored once filtered against the actual Bokeh model."""
     bokehbackend = pytest.importorskip("sherpa.plot.bokeh_backend")
+    from bokeh.embed import file_html
+    from bokeh.resources import CDN
 
     data = Data1DInt('tst', np.asarray([1, 2, 3]), np.asarray([1, 2, 3]) + 1,
                      np.asarray([10, 12, 10.5]))
@@ -118,9 +118,10 @@ def test_warning_plot_unknown_keyword(plotclass):
     pl.prepare(data, stat=None)
     newback = bokehbackend.BokehBackend()
     with plot.TemporaryPlottingBackend(newback):
-        with pytest.raises(AttributeError,
-                           match="unexpected attribute 'keyword_makes_no_sense' to Scatter"):
-            pl.plot(keyword_makes_no_sense='mousey')
+        pl.plot(keyword_makes_no_sense='mousey')
+        html = file_html(plot.backend.current_fig, CDN, "my plot")
+
+    assert 'mousey' not in html
 
 
 @pytest.mark.parametrize("plottype", [DelchiPlot, RatioPlot, ResidPlot])
@@ -154,3 +155,66 @@ def test_ignore_ylog_prefs(plottype):
     assert '"line_dash_offset":3' in html
     assert '"x_scale":{"type":"object","name":"LogScale"' in html
     assert '"y_scale":{"type":"object","name":"LinearScale"' in html
+
+
+@pytest.mark.parametrize("plottype", [DataPlot])
+def test_legend(plottype):
+    """Is the legend label passed through to the bokeh backend?
+    """
+
+    bokehbackend = pytest.importorskip("sherpa.plot.bokeh_backend")
+    # previous line guarantees that bokeh is installed
+    from bokeh.embed import file_html
+    from bokeh.resources import CDN
+
+    data = Data1D('tst', np.asarray([1, 2, 3]), np.asarray([10, 12, 10.5]))
+
+    pl = plottype()
+    pl.prepare(data)
+
+    newback = bokehbackend.BokehBackend()
+    with plot.TemporaryPlottingBackend(newback):
+        pl.plot(tags=['foo', 10], line_dash_offset=3, linestyle="dashed", label="mylabel")
+        html = file_html(plot.backend.current_fig, CDN, "my plot")
+
+    assert '"tags":["foo",10]' in html
+    assert '"line_dash_offset":3' in html
+    assert 'mylabel' in html
+
+
+def test_bokeh_marker_style_kwargs_are_filtered():
+    """Marker-only plots should ignore matplotlib-style kwargs unsupported by Bokeh."""
+    bokehbackend = pytest.importorskip("sherpa.plot.bokeh_backend")
+    from bokeh.embed import file_html
+    from bokeh.resources import CDN
+
+    data = Data1D('tst', np.asarray([1, 2, 3]), np.asarray([10, 12, 10.5]))
+    pl = DataPlot()
+    pl.prepare(data)
+
+    newback = bokehbackend.BokehBackend()
+    with plot.TemporaryPlottingBackend(newback):
+        pl.plot(marker='o', markersize=10, color='red',
+                fillstyle='none', line_dash_offset=3)
+        html = file_html(plot.backend.current_fig, CDN, "my plot")
+
+    assert 'red' in html or 'marker' in html
+    assert 'fillstyle' not in html
+
+
+def test_legend_histo():
+    """Histogram labels are passed through as Bokeh legend labels."""
+    bokehbackend = pytest.importorskip("sherpa.plot.bokeh_backend")
+    from bokeh.embed import file_html
+    from bokeh.resources import CDN
+
+    newback = bokehbackend.BokehBackend()
+    with plot.TemporaryPlottingBackend(newback):
+        newback.histo(np.asarray([0.0, 1.0, 2.0]),
+                      np.asarray([1.0, 2.0, 3.0]),
+                      np.asarray([10.0, 14.0, 11.0]),
+                      linestyle='solid',
+                      label='hist-label')
+        html = file_html(plot.backend.current_fig, CDN, "my histogram")
+
+    assert 'hist-label' in html
