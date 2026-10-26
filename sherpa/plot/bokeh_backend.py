@@ -33,7 +33,7 @@ from bokeh.plotting import figure, show
 from bokeh.models.scales import LinearScale, LogScale
 from bokeh.models.annotations import Span
 from bokeh.models import Whisker, Scatter, Line, Legend
-from bokeh.models import ColumnDataSource
+from bokeh.models import ColumnDataSource, LayoutDOM
 from bokeh import embed
 from bokeh.layouts import gridplot
 from bokeh import palettes
@@ -189,6 +189,18 @@ class BokehBackend(BasicBackend):
 
     palette = palettes.Category10[10]
 
+    current_axis : LayoutDOM
+    """ This is a reference to a panel in the current figure.
+    
+    Plot and use commands will act on this panel. 
+    It is a tuple of (figure, row, col) where figure is a bokeh figure object
+    and row and col are the row and column indices in the grid of plots.
+
+    Bokeh also allows for a "spanning" plot that covers multiple rows and columns. 
+    In that case, the tuple is (figure, row, col, rowspan, colspan).
+    Sherpa currently does not support spanning plots.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.clear_window()
@@ -227,12 +239,12 @@ class BokehBackend(BasicBackend):
 
     def _figure(self):
         fig = figure()
-        fig._color_cycle = cycle(self.palette)
+        fig._color_cycle = cycle(self.palette)  # type: ignore[attr-defined]
         return fig
 
     def clear_window(self):
         fig = self._figure()
-        self.current_fig = gridplot([fig], ncols=1)
+        self.current_fig = gridplot([fig], ncols=1, toolbar_location="above")
         self.current_axis = fig
 
     def setup_axes(self, overplot, clearwindow):
@@ -743,7 +755,7 @@ class BokehBackend(BasicBackend):
         index = self._index_axis(row, col)
         if index is not None and not clearaxes:
             # We found the right subplot, now make it the current one
-            self.current_axis = self.current_fig.children[index]
+            self.current_axis = self.current_fig.children[index][0]
             return
 
         # We found the subplot, but we want to replace it with a new one
@@ -753,6 +765,8 @@ class BokehBackend(BasicBackend):
         # At this stage, the subplot does not exist, so we make a new one
         # and add it to the grid.
         newf = self._figure()
+        # We have a toolbar for the entire grid, so we don't want a toolbar for each subplot.
+        newf.toolbar_location = None
         self.current_fig.children.append((newf, row, col))
         self.current_axis = newf
 
@@ -787,7 +801,7 @@ class BokehBackend(BasicBackend):
         # simpler.
         if create:
             figs = [self._figure() for n in range(nrows * ncols)]
-            self.current_fig = gridplot(figs, ncols=ncols)
+            self.current_fig = gridplot(figs, ncols=ncols, toolbar_location="above")
             self.current_axis = figs[row * ncols + col]
 
         # Space is dynamically allocated and lots of things can change the
