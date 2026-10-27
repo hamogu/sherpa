@@ -140,6 +140,9 @@ class BokehBackend(BasicBackend):
         "ecolor": translate_colors,
         "markerfacecolor": translate_colors,
         "linecolor": translate_colors,
+        # Sherpa treats ``None`` as the "use the backend default" sentinel.  Bokeh
+        # interprets ``None`` as a real property value in some places, so we map the
+        # Sherpa default here before the glyph is constructed.
         "linestyle": {
             "None": "noline",
             None: "solid",
@@ -153,6 +156,7 @@ class BokehBackend(BasicBackend):
             "-.": "dotdash",
         },
         "linewidth": {
+            # ``None`` means "default width" in the Sherpa API, not "no line".
             None: 1,
         },
         "drawstyle": {
@@ -539,7 +543,7 @@ class BokehBackend(BasicBackend):
 
 
         if color is None:
-            color = next(axes._color_cycle)
+            color = next(axes._color_cycle)  # type: ignore[attr-defined]
         if linecolor is not None:
             logger.warning("The linecolor attribute, set to {}, is unused.".format(linecolor))
         if markerfacecolor is None:

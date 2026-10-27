@@ -240,6 +240,25 @@ def test_legend_errorbars():
     assert isinstance(html, str)
 
 
+def test_bokeh_none_defaults_are_translated():
+    """Sherpa None defaults are translated before Bokeh sees the kwargs."""
+    bokehbackend = pytest.importorskip("sherpa.plot.bokeh_backend")
+    from bokeh.embed import file_html
+    from bokeh.resources import CDN
+
+    data = Data1D('tst', np.asarray([1, 2, 3]), np.asarray([10, 12, 10.5]))
+    pl = DataPlot()
+    pl.prepare(data)
+
+    newback = bokehbackend.BokehBackend()
+    with plot.TemporaryPlottingBackend(newback):
+        pl.plot(label='no-line', linestyle='None', linewidth=None, marker='o')
+        html = file_html(plot.backend.current_fig, CDN, "my translated defaults")
+
+    assert isinstance(html, str)
+    assert 'no-line' in html
+
+
 def test_legend_line_and_marker_share_label():
     """A single data series with a line and marker should contribute a single legend entry."""
     bokehbackend = pytest.importorskip("sherpa.plot.bokeh_backend")
