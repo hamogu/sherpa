@@ -218,3 +218,23 @@ def test_legend_histo():
         html = file_html(plot.backend.current_fig, CDN, "my histogram")
 
     assert 'hist-label' in html
+
+
+def test_legend_errorbars():
+    """Error-bar-only plots should not crash when a label is present."""
+    bokehbackend = pytest.importorskip("sherpa.plot.bokeh_backend")
+    from bokeh.embed import file_html
+    from bokeh.resources import CDN
+
+    data = Data1D('tst', np.asarray([1, 2, 3]), np.asarray([10, 12, 10.5]))
+    pl = DataPlot()
+    pl.prepare(data)
+
+    pl.xerr = np.asarray([0.5, 0.7, 0.8])
+
+    newback = bokehbackend.BokehBackend()
+    with plot.TemporaryPlottingBackend(newback):
+        pl.plot(label='error-label', xerrorbars=True)
+        html = file_html(plot.backend.current_fig, CDN, "my errorbars")
+
+    assert isinstance(html, str)

@@ -540,9 +540,11 @@ class BokehBackend(BasicBackend):
         line_kwargs = self._filter_kwargs_for_model(Line, kwargs)
         line_kwargs['legend_label'] = legend_label
 
-        # For lines, bokeh can add the legend to the line, but for markers,
-        # it needs to be added separately.
-        # `has_line` tracks if we have a line that the legend can be added to.
+        # Depending on which objects are drawn (e.g. the line can be omitted
+        # by setting linestyle='noline'), the legend may need to be added to
+        # the line or to the marker.
+        # `has_legend` tracks if we attached the legend to something already.
+        has_legend = False
         has_line = linestyle != 'noline'
         if has_line:
             if drawstyle == 'default':
@@ -561,6 +563,7 @@ class BokehBackend(BasicBackend):
                                 alpha=alpha,
                                 **line_kwargs
                                 ))
+            has_legend = True
         if marker not in ('None', ''):
             source = ColumnDataSource({'x': np.atleast_1d(x),
                                        'y': np.atleast_1d(y)})
@@ -574,8 +577,9 @@ class BokehBackend(BasicBackend):
                             **scatter_kwargs
                             )
             renderer = axes.add_glyph(source, glyph)
-            if legend_label is not None and not has_line:
+            if legend_label is not None and not has_legend:
                 axes.add_layout(Legend(items=[(legend_label, [renderer])]))
+                has_legend = True
             objs.append(glyph)
 
         if xerrorbars and xerr is not None:
@@ -596,6 +600,9 @@ class BokehBackend(BasicBackend):
             xwhisker.upper_head.size=capsize
             xwhisker.lower_head.size=capsize
             axes.add_layout(xwhisker)
+            # Bokeh does not accept a Whisker as a legend renderer; only actual
+            # glyph renderers (e.g., line/scatter) can be used in a LegendItem.
+            # So, wisker-only plots skip the legend.
             objs.append(xwhisker)
 
         if yerrorbars and yerr is not None:
