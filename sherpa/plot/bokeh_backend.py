@@ -32,7 +32,7 @@ import bokeh
 from bokeh.plotting import figure, show
 from bokeh.models.scales import LinearScale, LogScale
 from bokeh.models.annotations import Span
-from bokeh.models import Whisker, Scatter, Line, Legend, ColumnDataSource
+from bokeh.models import Whisker, Scatter, Line, Legend, LegendItem, ColumnDataSource
 from bokeh import embed
 from bokeh.layouts import gridplot
 from bokeh import palettes
@@ -249,6 +249,26 @@ class BokehBackend(BasicBackend):
         """
         valid = set(model.properties())
         return {k: v for k, v in kwargs.items() if k in valid}
+
+    @staticmethod
+    def _ensure_legend_for_renderer(axes, label, renderer):
+        """Attach a legend item to the current figure, reusing the same legend."""
+        if label is None:
+            return
+
+        if axes.legend and len(axes.legend) > 0:
+            legend = axes.legend[0]
+        else:
+            legend = Legend(items=[])
+            axes.add_layout(legend)
+
+        for item in legend.items:
+            if item.label.value == label:
+                if renderer not in item.renderers:
+                    item.renderers.append(renderer)
+                return
+
+        legend.items.append(LegendItem(label=label, renderers=[renderer]))
 
     def _figure(self):
         fig = figure()
@@ -537,33 +557,33 @@ class BokehBackend(BasicBackend):
 
         # Bokeh line, marker and whisker models accept different keyword sets.
         # Filter each target by the actual property names supported by that model.
+        # Note: legend_label is handled explicitly below so it does not get
+        # passed to a glyph model that does not accept it.
         line_kwargs = self._filter_kwargs_for_model(Line, kwargs)
-        line_kwargs['legend_label'] = legend_label
 
-        # Depending on which objects are drawn (e.g. the line can be omitted
-        # by setting linestyle='noline'), the legend may need to be added to
-        # the line or to the marker.
-        # `has_legend` tracks if we attached the legend to something already.
-        has_legend = False
+        # If both the line and the marker are shown for the same series, they
+        # should both contribute a legend entry with the same label.
         has_line = linestyle != 'noline'
         if has_line:
             if drawstyle == 'default':
-                objs.append(axes.line(x, y,
-                                      line_dash=linestyle,
-                                      line_color=color,
-                                      line_width=linewidth,
-                                      alpha=alpha,
-                                      **line_kwargs
-                                      ))
+                renderer = axes.line(x, y,
+                                    line_dash=linestyle,
+                                    line_color=color,
+                                    line_width=linewidth,
+                                    alpha=alpha,
+                                    **line_kwargs
+                                    )
             else:
-                objs.append(axes.steps(x, y,
-                                mode=drawstyle,
-                                line_dash=linestyle,
-                                line_color=color,
-                                alpha=alpha,
-                                **line_kwargs
-                                ))
-            has_legend = True
+                renderer = axes.steps(x, y,
+                                    mode=drawstyle,
+                                    line_dash=linestyle,
+                                    line_color=color,
+                                    alpha=alpha,
+                                    **line_kwargs
+                                    )
+            if legend_label is not None:
+                self._ensure_legend_for_renderer(axes, legend_label, renderer)
+            objs.append(renderer)
         if marker not in ('None', ''):
             source = ColumnDataSource({'x': np.atleast_1d(x),
                                        'y': np.atleast_1d(y)})
@@ -577,9 +597,8 @@ class BokehBackend(BasicBackend):
                             **scatter_kwargs
                             )
             renderer = axes.add_glyph(source, glyph)
-            if legend_label is not None and not has_legend:
-                axes.add_layout(Legend(items=[(legend_label, [renderer])]))
-                has_legend = True
+            if legend_label is not None:
+                self._ensure_legend_for_renderer(axes, legend_label, renderer)
             objs.append(glyph)
 
         if xerrorbars and xerr is not None:

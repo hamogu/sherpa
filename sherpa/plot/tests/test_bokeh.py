@@ -238,3 +238,42 @@ def test_legend_errorbars():
         html = file_html(plot.backend.current_fig, CDN, "my errorbars")
 
     assert isinstance(html, str)
+
+
+def test_legend_line_and_marker_share_label():
+    """A single data series with a line and marker should contribute a single legend entry."""
+    bokehbackend = pytest.importorskip("sherpa.plot.bokeh_backend")
+
+    data = Data1D('tst', np.asarray([1, 2, 3]), np.asarray([10, 12, 10.5]))
+    pl = DataPlot()
+    pl.prepare(data)
+
+    newback = bokehbackend.BokehBackend()
+    with plot.TemporaryPlottingBackend(newback):
+        pl.plot(label='data', linestyle='solid', marker='o', markersize=10, color='red')
+
+        legend = plot.backend.current_axis.legend
+        assert len(legend) == 1
+        assert len(legend[0].items) == 1
+        assert legend[0].items[0].label.value == 'data'
+        assert len(legend[0].items[0].renderers) == 2
+
+
+def test_merged_legend_for_overplot():
+    """Overplotted series should share one legend, with each label condensed to a single item."""
+    bokehbackend = pytest.importorskip("sherpa.plot.bokeh_backend")
+
+    data = Data1D('tst', np.asarray([1, 2, 3]), np.asarray([10, 12, 10.5]))
+    pl = DataPlot()
+    pl.prepare(data)
+
+    newback = bokehbackend.BokehBackend()
+    with plot.TemporaryPlottingBackend(newback):
+        pl.plot(label='data', linestyle='solid', marker='o', markersize=10, color='red')
+        pl.plot(overplot=True, label='data2', linestyle='solid', marker='o', color='blue')
+
+        legend = plot.backend.current_axis.legend
+        assert len(legend) == 1
+        assert len(legend[0].items) == 2
+        assert {item.label.value for item in legend[0].items} == {'data', 'data2'}
+        assert all(len(item.renderers) == 2 for item in legend[0].items)
