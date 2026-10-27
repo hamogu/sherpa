@@ -32,8 +32,7 @@ import bokeh
 from bokeh.plotting import figure, show
 from bokeh.models.scales import LinearScale, LogScale
 from bokeh.models.annotations import Span
-from bokeh.models import Whisker, Scatter, Line, Legend
-from bokeh.models import ColumnDataSource, LayoutDOM
+from bokeh.models import Whisker, Scatter, Line, Legend, ColumnDataSource
 from bokeh import embed
 from bokeh.layouts import gridplot
 from bokeh import palettes
@@ -71,6 +70,20 @@ solid line) or any other bokeh linestyle.'''],
 }
 
 kwargs_doc = ChainMap(updated_kwarg_docs, orig_kwargs_doc)
+
+
+class figure_with_color_cycle(figure):
+    """A bokeh figure with a color cycle.
+
+    This is a wrapper around the bokeh figure class that adds an attribute
+    `_color_cycle` that is an `itertools.cycle` object cycling through the
+    colors in the palette defined in the `palette` attribute of the BokehBackend
+    class.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._color_cycle = None  # type: ignore[assignment]
 
 
 class BokehBackend(BasicBackend):
@@ -189,7 +202,7 @@ class BokehBackend(BasicBackend):
 
     palette = palettes.Category10[10]
 
-    current_axis : LayoutDOM
+    current_axis : figure
     """ This is a reference to a panel in the current figure.
     
     Plot and use commands will act on this panel. 
@@ -517,15 +530,15 @@ class BokehBackend(BasicBackend):
         objs = []
 
         # The generic "label" overrides the bokeh-specific "legend_label" parameter.
+        # But even if "label" is set, we still need to pop the "legend_label" parameter from kwargs first
+        # so it is not passed to the bokeh Glyphs that don't accept it.
         legend_label = kwargs.pop('legend_label', None)
-        if label is not None:
-            legend_label = label
+        legend_label = label or legend_label
 
         # Bokeh line, marker and whisker models accept different keyword sets.
         # Filter each target by the actual property names supported by that model.
         line_kwargs = self._filter_kwargs_for_model(Line, kwargs)
-        if legend_label is not None:
-            line_kwargs['legend_label'] = legend_label
+        line_kwargs['legend_label'] = legend_label
 
         # For lines, bokeh can add the legend to the line, but for markers,
         # it needs to be added separately.
